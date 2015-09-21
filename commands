@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+
+PLUGIN_BASE_PATH="$PLUGIN_PATH"
+if [[ -n $DOKKU_API_VERSION ]]; then
+  PLUGIN_BASE_PATH="$PLUGIN_ENABLED_PATH"
+fi
+source "$PLUGIN_BASE_PATH/common/functions"
+
+case "$1" in
+  logs:color)
+    [[ -z $2 ]] && dokku_log_fail "Please specify an app to run the command on"
+    APP="$2"; verify_app_name "$2"
+    APP_ROOT="$DOKKU_ROOT/$APP"
+    COLORS=(36 33 32 35 31)
+
+    if (is_deployed "$APP"); then
+      CONTAINERS=("$APP_ROOT"/CONTAINER.*)
+      if [[ $3 == "-t" ]]; then
+        DOKKU_LOGS_ARGS="--follow --tail 100"
+      else
+        DOKKU_LOGS_ARGS="--tail 100"
+      fi
+      ((MAX_INDEX=${#CONTAINERS[*]} - 1)) || true
+      for i in ${!CONTAINERS[*]}; do
+        DYNO=$(echo "${CONTAINERS[i]}" | sed -r 's/.*CONTAINER\.(.*)/\1/')
+        CID=$(cat "${CONTAINERS[i]}")
+        COLOR=${COLORS[i % ${#COLORS[*]}]}
+        DOKKU_LOGS_CMD+="(docker logs -t $DOKKU_LOGS_ARGS $CID 2>&1 | sed -r 's/^([^Z]+Z )/\x1b[${COLOR}m\1$APP[$DYNO]:\x1b[0m /gm')"
+        if [[ $i != "$MAX_INDEX" ]]; then
+          DOKKU_LOGS_CMD+="& "
+        else
+          DOKKU_LOGS_CMD+="; "
+        fi
+      done
+      bash -c "($DOKKU_LOGS_CMD)"
+    else
+      echo "Application's container not found"
+    fi
+    ;;
+
+  help)
+    HELP=$(cat<<EOF
+    logs:color <name> [-t], Show the last logs for an application (-t follows)
+EOF
+)
+    if [[ -n $DOKKU_API_VERSION ]]; then
+      echo "$HELP"
+    else
+      cat && echo "$HELP"
+    fi
+    ;;
+esac
