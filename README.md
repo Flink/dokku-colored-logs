@@ -1,4 +1,6 @@
-# dokku-colored-logs
+# (DEPRECATED) dokku-colored-logs
+
+THIS PLUGIN IS NOW DEPRECATED SINCE IT HAS BEEN INCLUDED DIRECTLY IN DOKKU
 
 dokku-colored-logs is a plugin for [dokku][dokku] that outputs colored logs with named containers (like on Heroku).
 
